@@ -1,0 +1,68 @@
+# ─── Python / Backend ───────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+ENV/
+*.env
+!backend/.env.example
+
+# Alembic generated SQLite databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Byte-compiled / optimized / DLL files
+*.pyc
+*.pyo
+*.pyd
+
+# ─── Node / Frontend ────────────────────────────────────────
+node_modules/
+frontend/.next/
+frontend/out/
+frontend/dist/
+frontend/.cache/
+frontend/.turbo/
+*.tsbuildinfo
+next-env.d.ts
+
+# ─── Logs ───────────────────────────────────────────────────
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ─── OS & Editor ────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ─── Environment secrets ────────────────────────────────────
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+
+# ─── Docker ─────────────────────────────────────────────────
+.docker/
+
+# ─── Misc ───────────────────────────────────────────────────
+*.bak
+*.tmp
+run_migration.sh
