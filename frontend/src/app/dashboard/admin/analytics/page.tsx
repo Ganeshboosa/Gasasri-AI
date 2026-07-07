@@ -101,7 +101,7 @@ export default function AdminAnalyticsPage() {
                 <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-cyan-500 transition-all duration-700"
-                    style={{ width: \`\${Math.min(100, (h.doctors / 10) * 100)}%\` }}
+                    style={{ width: `${Math.min(100, (h.doctors / 10) * 100)}%` }}
                   />
                 </div>
               </div>

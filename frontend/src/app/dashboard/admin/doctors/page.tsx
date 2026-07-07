@@ -122,7 +122,7 @@ export default function AdminDoctorsPage() {
                   </div>
                   <div>
                     <h3 className="font-semibold text-white">{doc.name}</h3>
-                    <p className="text-sm text-slate-400">{doc.specialty || "Unspecified Specialty"}</p>
+                    <p className="text-sm text-slate-400">{doc.specialization || "Unspecified Specialty"}</p>
                   </div>
                 </div>
                 <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border flex-shrink-0 ${cfg.bg} ${cfg.color}`}>
