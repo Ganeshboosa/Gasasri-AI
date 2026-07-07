@@ -2,11 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from typing import List
-from datetime import date
+from datetime import date, datetime, timedelta
 
-from app.core.database import AsyncSessionLocal
 from app.models.user import User, UserRole
 from app.models.profile import Patient
+from app.models.medical import Consent
 from app.schemas.patient import PatientProfileUpdate, PatientProfileResponse
 from app.api.deps import get_db, get_current_user
 
@@ -122,15 +122,25 @@ async def list_patients(current_user: User = Depends(get_current_user), db: Asyn
                 (today.month, today.day) < (patient.date_of_birth.month, patient.date_of_birth.day)
             )
 
+        consent_result = await db.execute(
+            select(Consent).where(
+                Consent.patient_id == user.id,
+                Consent.requester_id == current_user.id,
+                Consent.status == "GRANTED",
+                Consent.expires_at > datetime.utcnow(),
+            )
+        )
+        active_consent = consent_result.scalars().first()
+
         response.append({
             "id": user.id,
             "name": f"{user.first_name} {user.last_name}",
             "email": user.email,
-            "health_id": user.health_id,
+            "health_id": user.health_id or f"PENDING-{user.id:04d}",
             "age": age or "N/A",
             "condition": ", ".join(patient.chronic_diseases) if patient.chronic_diseases else "None reported",
             "lastVisit": "Recent",
-            "accessStatus": "granted" if patient.doctor_access_consent else "pending",
+            "accessStatus": "granted" if active_consent else ("eligible" if patient.doctor_access_consent else "restricted"),
             "blood_group": patient.blood_group or "Not set",
             "profile_completed": patient.profile_completed
         })
@@ -153,9 +163,13 @@ async def get_emergency_profile(health_id: str, db: AsyncSession = Depends(get_d
     
     if not patient:
         raise HTTPException(status_code=404, detail="Patient profile not found")
+
+    if not patient.emergency_access_consent:
+        raise HTTPException(status_code=403, detail="Emergency access is disabled for this patient")
  
     return {
         "name": f"{user.first_name} {user.last_name}",
+        "health_id": user.health_id,
         "blood_group": patient.blood_group,
         "allergies": patient.allergies or [],
         "chronic_diseases": patient.chronic_diseases or [],
@@ -174,8 +188,39 @@ async def request_access(patient_id: int, current_user: User = Depends(get_curre
     """
     if current_user.role != UserRole.DOCTOR:
         raise HTTPException(status_code=403, detail="Only doctors can request access.")
-        
-    return {"status": "pending", "message": "Access request sent. Waiting for patient OTP."}
+
+    patient_result = await db.execute(select(Patient).where(Patient.user_id == patient_id))
+    patient = patient_result.scalars().first()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    if not patient.doctor_access_consent:
+        raise HTTPException(status_code=403, detail="Patient has not enabled doctor access consent")
+
+    otp_code = f"{patient_id:06d}"[-6:]
+    result = await db.execute(
+        select(Consent).where(Consent.patient_id == patient_id, Consent.requester_id == current_user.id)
+    )
+    consent = result.scalars().first()
+    if consent:
+        consent.status = "PENDING"
+        consent.granted_at = None
+        consent.expires_at = None
+        consent.otp_code = otp_code
+    else:
+        consent = Consent(
+            patient_id=patient_id,
+            requester_id=current_user.id,
+            status="PENDING",
+            otp_code=otp_code,
+        )
+        db.add(consent)
+
+    await db.commit()
+    return {
+        "status": "pending",
+        "message": "Access request created. Enter the patient verification code to proceed.",
+        "otp_hint": otp_code if current_user.role == UserRole.DOCTOR else None,
+    }
 
 @router.post("/{patient_id}/verify-access")
 async def verify_access(patient_id: int, otp: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
@@ -184,8 +229,19 @@ async def verify_access(patient_id: int, otp: str, current_user: User = Depends(
     """
     if current_user.role != UserRole.DOCTOR:
         raise HTTPException(status_code=403, detail="Only doctors can verify access.")
-        
-    if otp == "000000":  # Demo OTP
-        return {"status": "granted", "message": "Access granted to patient records."}
-        
-    raise HTTPException(status_code=400, detail="Invalid OTP")
+
+    result = await db.execute(
+        select(Consent).where(Consent.patient_id == patient_id, Consent.requester_id == current_user.id)
+    )
+    consent = result.scalars().first()
+    if not consent:
+        raise HTTPException(status_code=404, detail="No access request found for this patient")
+
+    if otp != consent.otp_code:
+        raise HTTPException(status_code=400, detail="Invalid OTP")
+
+    consent.status = "GRANTED"
+    consent.granted_at = datetime.utcnow()
+    consent.expires_at = datetime.utcnow() + timedelta(hours=12)
+    await db.commit()
+    return {"status": "granted", "message": "Access granted to patient records."}

@@ -33,3 +33,17 @@ class Consent(Base):
     status = Column(String, default="PENDING") # PENDING, GRANTED, REVOKED
     granted_at = Column(DateTime(timezone=True), nullable=True)
     expires_at = Column(DateTime(timezone=True), nullable=True)
+    otp_code = Column(String, nullable=True)
+
+
+class Appointment(Base):
+    __tablename__ = "appointments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    patient_id = Column(Integer, ForeignKey("patients.user_id"), nullable=False)
+    doctor_id = Column(Integer, ForeignKey("doctors.user_id"), nullable=False)
+    title = Column(String, nullable=False)
+    notes = Column(Text, nullable=True)
+    scheduled_for = Column(DateTime(timezone=True), nullable=False)
+    status = Column(String, default="UPCOMING", nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

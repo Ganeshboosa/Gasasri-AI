@@ -4,14 +4,27 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from datetime import timedelta
 
-from app.core.database import AsyncSessionLocal
 from app.core.security import verify_password, get_password_hash, create_access_token
 from app.core.config import settings
 from app.models.user import User, UserRole
+from app.models.profile import Patient, Doctor
 from app.schemas.user import UserCreate, UserResponse, Token, OTPVerify
 from app.api.deps import get_db, get_current_user
 
 router = APIRouter()
+
+
+def serialize_user(user: User) -> dict:
+    return {
+        "id": user.id,
+        "email": user.email,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "name": f"{user.first_name} {user.last_name}".strip(),
+        "role": user.role,
+        "is_verified": user.is_verified,
+        "health_id": user.health_id,
+    }
 
 @router.post("/signup", response_model=UserResponse)
 async def signup(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
@@ -33,11 +46,24 @@ async def signup(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
         role=user_in.role
     )
     db.add(new_user)
+
+    await db.flush()
+    if user_in.role == UserRole.PATIENT:
+        db.add(Patient(user_id=new_user.id))
+    elif user_in.role == UserRole.DOCTOR:
+        db.add(
+            Doctor(
+                user_id=new_user.id,
+                specialization="General Practice",
+                license_number=f"LIC-{new_user.id:05d}",
+            )
+        )
+
     await db.commit()
     await db.refresh(new_user)
     
     # MVP: In a real app we would trigger OTP sending here via Redis PubSub / Email API
-    return new_user
+    return serialize_user(new_user)
 
 @router.post("/login", response_model=Token)
 async def login(db: AsyncSession = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()):
@@ -66,12 +92,12 @@ async def get_me(current_user: User = Depends(get_current_user)):
     Returns the currently authenticated user's profile.
     Call this after login to get real name, role, and ID.
     """
-    return current_user
+    return serialize_user(current_user)
 
 @router.post("/verify-otp")
 async def verify_otp(otp_data: OTPVerify, db: AsyncSession = Depends(get_db)):
     # MVP Mock OTP Logic. In production, check against Redis.
-    if otp_data.otp == "123456": # Hardcoded for demo/MVP
+    if otp_data.otp == "123456":
         result = await db.execute(select(User).where(User.email == otp_data.email))
         user = result.scalars().first()
         if not user:

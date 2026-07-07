@@ -11,13 +11,17 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
     # DATABASE
-    DATABASE_URL: str = "postgresql+asyncpg://gasasri_user:gasasri_pass@localhost:5432/gasasri_db"
+    DATABASE_URL: str = "sqlite+aiosqlite:///./gasasri_dev.db"
     
     # REDIS
     REDIS_URL: str = "redis://localhost:6379/0"
     
     # AI API
     GEMINI_API_KEY: Optional[str] = None
+
+    # STORAGE / APP URLS
+    UPLOAD_DIR: str = "uploads"
+    PUBLIC_BACKEND_URL: str = "http://localhost:8000"
     
     # ENV
     ENVIRONMENT: str = "development"

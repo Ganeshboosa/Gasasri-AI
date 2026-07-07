@@ -15,8 +15,10 @@ class UserResponse(BaseModel):
     email: EmailStr
     first_name: str
     last_name: str
+    name: str
     role: UserRole
     is_verified: bool
+    health_id: Optional[str] = None
 
     class Config:
         from_attributes = True

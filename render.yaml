@@ -1,0 +1,29 @@
+services:
+  # ── FastAPI Backend ──────────────────────────────────────────
+  - type: web
+    name: gasasri-ai-backend
+    runtime: python
+    region: singapore
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: alembic upgrade head && python seed.py && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: gasasri-db
+          property: connectionString
+      - key: GEMINI_API_KEY
+        sync: false   # You'll set this manually in the Render dashboard
+
+  # ── PostgreSQL Database ──────────────────────────────────────
+databases:
+  - name: gasasri-db
+    region: singapore
+    plan: free
+    databaseName: gasasri
+    user: gasasri_user
