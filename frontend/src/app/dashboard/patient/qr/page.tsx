@@ -57,7 +57,7 @@ export default function EmergencyQRPage() {
   // Fallback health id
   const healthId = user?.health_id || "GAS-PAT-921";
   // Public emergency access URL
-  const emergencyUrl = `http://localhost:8000/api/v1/patients/emergency/${healthId}`;
+  const emergencyUrl = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"}/patients/emergency/${healthId}`;
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 max-w-3xl mx-auto">
